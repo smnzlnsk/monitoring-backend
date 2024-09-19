@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/smnzlnsk/monitoring-backend/logging"
 	"github.com/smnzlnsk/monitoring-backend/metrics"
 	"github.com/smnzlnsk/monitoring-backend/mqtt"
 	"log"
@@ -25,6 +26,7 @@ func main() {
 		if err != nil {
 			initError = err
 		}
+		err = logging.NewLogger()
 		return
 	})
 	if initError != nil {

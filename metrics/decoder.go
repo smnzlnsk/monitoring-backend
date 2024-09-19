@@ -2,7 +2,9 @@ package metrics
 
 import (
 	"fmt"
+	"github.com/smnzlnsk/monitoring-backend/logging"
 	"github.com/smnzlnsk/monitoring-backend/metrics/handlers"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -19,7 +21,7 @@ var metricDecoder MetricDecoder
 
 func GetDecoder() MetricDecoder {
 	if metricDecoder == nil {
-		panic("metric decoder not initialized")
+		logging.Logger.Panic("metric decoder not initialized")
 	}
 	return metricDecoder
 }
@@ -78,7 +80,8 @@ func (omd *OakestraMetricDecoder) DecodeMetrics(rawMetrics []byte) error {
 func (omd *OakestraMetricDecoder) getDatapointHandler(datapointType string) handlers.DatapointHandler {
 	h := omd.handlerCategoryTable[datapointType]
 	if h == nil {
-		fmt.Printf("datapoint handler not initialized or implemented for type: %s\n", datapointType)
+		logging.Logger.Debug("datapoint handler not initialized or implemented",
+			zap.String("missing_type", datapointType))
 	}
 	return h
 }

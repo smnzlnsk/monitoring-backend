@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"fmt"
+	"github.com/smnzlnsk/monitoring-backend/logging"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.uber.org/zap"
 )
 
 var _ DatapointHandler = (*DiskIODatapointHandler)(nil)
@@ -38,23 +39,23 @@ func (dio *DiskIODatapointHandler) getMetricTypeHandle(metricType string) func(m
 func (dio *DiskIODatapointHandler) handleSum(metric pmetric.Metric) {
 	for i := 0; i < metric.Sum().DataPoints().Len(); i++ {
 		dataPoint := metric.Sum().DataPoints().At(i)
-		machine, _ := dataPoint.Attributes().Get("machine")
 		switch dataPoint.ValueType().String() {
 		case "Double":
-			fmt.Printf("%s, %s, %s, %f, %s/n",
-				metric.Type().String(),
-				metric.Name(),
-				dataPoint.ValueType().String(),
-				dataPoint.DoubleValue(), machine.Str())
+			logging.Logger.Info("",
+				zap.String("name", metric.Name()),
+				zap.Any("attributes", dataPoint.Attributes().AsRaw()),
+				zap.String("type", dataPoint.ValueType().String()),
+				zap.Any("value", dataPoint.DoubleValue()),
+			)
 		case "Int":
-			fmt.Printf("%s, %s, %s, %d, %s/n",
-				metric.Type().String(),
-				metric.Name(),
-				dataPoint.ValueType().String(),
-				dataPoint.IntValue(),
-				machine.Str())
+			logging.Logger.Info("",
+				zap.String("name", metric.Name()),
+				zap.Any("attributes", dataPoint.Attributes().AsRaw()),
+				zap.String("type", dataPoint.ValueType().String()),
+				zap.Any("value", dataPoint.IntValue()),
+			)
 		default:
-			fmt.Printf("unsupported datapoint type")
+			logging.Logger.Warn("unsupported datapoint type")
 			return
 		}
 	}
@@ -63,7 +64,12 @@ func (dio *DiskIODatapointHandler) handleSum(metric pmetric.Metric) {
 func (dio *DiskIODatapointHandler) handleGauge(metric pmetric.Metric) {
 	for i := 0; i < metric.Gauge().DataPoints().Len(); i++ {
 		dataPoint := metric.Gauge().DataPoints().At(i)
-		fmt.Printf("%s, %s, %f/n", metric.Type().String(), metric.Name(), dataPoint.DoubleValue())
+		logging.Logger.Info("",
+			zap.String("name", metric.Name()),
+			zap.Any("attributes", dataPoint.Attributes().AsRaw()),
+			zap.String("type", dataPoint.ValueType().String()),
+			zap.Any("value", dataPoint.IntValue()),
+		)
 	}
 }
 
@@ -72,7 +78,10 @@ func (dio *DiskIODatapointHandler) handleHistogram(metric pmetric.Metric) {
 		dataPoint := metric.Histogram().DataPoints().At(i)
 		// TODO: Implement me!
 		// ! Currently not contained in the metrics data package we receive
-		fmt.Printf("%s, %s, %v/n", metric.Type().String(), metric.Name(), dataPoint.Attributes())
+		logging.Logger.Info("",
+			zap.String("name", metric.Name()),
+			zap.Any("attributes", dataPoint.Attributes().AsRaw()),
+		)
 	}
 }
 
@@ -81,6 +90,9 @@ func (dio *DiskIODatapointHandler) handleSummary(metric pmetric.Metric) {
 		dataPoint := metric.Summary().DataPoints().At(i)
 		// TODO: Implement me!
 		// ! Currently not contained in the metrics data package we receive
-		fmt.Printf("%s, %s, %v/n", metric.Type().String(), metric.Name(), dataPoint.Attributes())
+		logging.Logger.Info("",
+			zap.String("name", metric.Name()),
+			zap.Any("attributes", dataPoint.Attributes().AsRaw()),
+		)
 	}
 }

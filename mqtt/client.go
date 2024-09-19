@@ -2,7 +2,8 @@ package mqtt
 
 import (
 	"fmt"
-	"log"
+	"github.com/smnzlnsk/monitoring-backend/logging"
+	"go.uber.org/zap"
 	"sync"
 	"time"
 
@@ -36,14 +37,14 @@ func NewMqttClient(clientId string, host string, port string, topic string, hand
 	}
 
 	var onConnectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-		log.Println("Connected to MQTT Broker")
+		logging.Logger.Info("Connected to MQTT Broker")
 
 		client.Subscribe(topic, 1, handler)
-		log.Println("Subscribed to ", topic)
+		logging.Logger.Info(fmt.Sprintf("Subscribed to %s", topic))
 	}
 
 	var onConnectionLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-		log.Println("Connection lost to MQTT Broker")
+		logging.Logger.Error("Connection lost to MQTT Broker")
 	}
 
 	opts := mqtt.NewClientOptions()
@@ -54,7 +55,7 @@ func NewMqttClient(clientId string, host string, port string, topic string, hand
 
 	c.client = mqtt.NewClient(opts)
 	if token := c.client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
+		logging.Logger.Panic("could not connect to broker", zap.Error(token.Error()))
 	}
 	return &c
 }
@@ -65,7 +66,7 @@ func (c *MqttClient) RegisterTopic(topic string, handler mqtt.MessageHandler) {
 	c.topics[topic] = handler
 	token := c.client.Subscribe(topic, 1, handler)
 	if token.WaitTimeout(time.Second*5) && token.Error() != nil {
-		log.Printf("error in register topic: %s", token.Error())
+		logging.Logger.Error("error in register topic", zap.Error(token.Error()))
 	}
 }
 
@@ -75,6 +76,6 @@ func (c *MqttClient) DeregisterTopic(topic string) {
 	token := c.client.Unsubscribe(topic)
 	delete(c.topics, topic)
 	if token.WaitTimeout(time.Second*5) && token.Error() != nil {
-		log.Printf("error in deregister topic: %s", token.Error())
+		logging.Logger.Error("error in deregister topic", zap.Error(token.Error()))
 	}
 }
