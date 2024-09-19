@@ -1,23 +1,46 @@
 package main
 
 import (
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	mymqtt "github.com/smnzlnsk/monitoring-backend/mqtt"
+	"github.com/smnzlnsk/monitoring-backend/metrics"
+	"github.com/smnzlnsk/monitoring-backend/mqtt"
 	"log"
 	"os"
+	"sync"
 )
 
-func mqttMessageHandler(client mqtt.Client, msg mqtt.Message) {
-	log.Println("Received message: ", string(msg.Payload()))
+var once sync.Once
+var initError error
+
+type backend struct {
+	messagingClient *mqtt.MqttClient
 }
 
 func main() {
-	mymqtt.NewMqttClient(
-		"backend-mac",
-		os.Getenv("MQTT_URL"),
-		os.Getenv("MQTT_PORT"),
-		"metrics/done",
-		mqttMessageHandler)
+	once.Do(func() {
+		err := metrics.InitMarshaler("proto")
+		if err != nil {
+			initError = err
+		}
+		err = metrics.InitOakestraDecoder()
+		if err != nil {
+			initError = err
+		}
+		return
+	})
+	if initError != nil {
+		log.Fatal(initError)
+	}
+
+	_ = backend{
+		messagingClient: mqtt.NewMqttClient(
+			"backend-mac",
+			os.Getenv("MQTT_URL"),
+			os.Getenv("MQTT_PORT"),
+			"metrics/done",
+			mqtt.DefaultHandler),
+	}
+	// loop infinitely [for now]
 	for {
+		continue
 	}
 }

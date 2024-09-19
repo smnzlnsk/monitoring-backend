@@ -9,15 +9,12 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-var initMqttClient sync.Once
-var MqttClient mClient
-
 type brokerConfig struct {
 	host string
 	port string
 }
 
-type mClient struct {
+type MqttClient struct {
 	client       mqtt.Client
 	topics       map[string]mqtt.MessageHandler
 	topicMutex   *sync.RWMutex
@@ -26,45 +23,43 @@ type mClient struct {
 	clientId     string
 }
 
-func NewMqttClient(clientId string, host string, port string, topic string, handler mqtt.MessageHandler) *mClient {
-	initMqttClient.Do(func() {
-		MqttClient = mClient{
-			topics:       make(map[string]mqtt.MessageHandler),
-			topicMutex:   &sync.RWMutex{},
-			messageMutex: &sync.Mutex{},
-			broker: brokerConfig{
-				host: host,
-				port: port,
-			},
-			clientId: clientId,
-		}
+func NewMqttClient(clientId string, host string, port string, topic string, handler mqtt.MessageHandler) *MqttClient {
+	c := MqttClient{
+		topics:       make(map[string]mqtt.MessageHandler),
+		topicMutex:   &sync.RWMutex{},
+		messageMutex: &sync.Mutex{},
+		broker: brokerConfig{
+			host: host,
+			port: port,
+		},
+		clientId: clientId,
+	}
 
-		var onConnectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-			log.Println("Connected to MQTT Broker")
+	var onConnectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
+		log.Println("Connected to MQTT Broker")
 
-			client.Subscribe(topic, 1, handler)
-			log.Println("Subscribed to ", topic)
-		}
+		client.Subscribe(topic, 1, handler)
+		log.Println("Subscribed to ", topic)
+	}
 
-		var onConnectionLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-			log.Println("Connection lost to MQTT Broker")
-		}
+	var onConnectionLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
+		log.Println("Connection lost to MQTT Broker")
+	}
 
-		opts := mqtt.NewClientOptions()
-		opts.AddBroker(fmt.Sprintf("tcp://%s:%s", MqttClient.broker.host, MqttClient.broker.port))
-		opts.OnConnect = onConnectHandler
-		opts.OnConnectionLost = onConnectionLostHandler
-		opts.SetClientID(MqttClient.clientId)
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker(fmt.Sprintf("tcp://%s:%s", c.broker.host, c.broker.port))
+	opts.OnConnect = onConnectHandler
+	opts.OnConnectionLost = onConnectionLostHandler
+	opts.SetClientID(c.clientId)
 
-		MqttClient.client = mqtt.NewClient(opts)
-		if token := MqttClient.client.Connect(); token.Wait() && token.Error() != nil {
-			panic(token.Error())
-		}
-	})
-	return &MqttClient
+	c.client = mqtt.NewClient(opts)
+	if token := c.client.Connect(); token.Wait() && token.Error() != nil {
+		panic(token.Error())
+	}
+	return &c
 }
 
-func (c *mClient) RegisterTopic(topic string, handler mqtt.MessageHandler) {
+func (c *MqttClient) RegisterTopic(topic string, handler mqtt.MessageHandler) {
 	c.topicMutex.Lock()
 	defer c.topicMutex.Unlock()
 	c.topics[topic] = handler
@@ -74,7 +69,7 @@ func (c *mClient) RegisterTopic(topic string, handler mqtt.MessageHandler) {
 	}
 }
 
-func (c *mClient) DeregisterTopic(topic string) {
+func (c *MqttClient) DeregisterTopic(topic string) {
 	c.topicMutex.Lock()
 	defer c.topicMutex.Unlock()
 	token := c.client.Unsubscribe(topic)
